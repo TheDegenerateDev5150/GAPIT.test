@@ -178,7 +178,8 @@ GAPIT.Circle.Manhattan.Plot <- function(
 	file="pdf",
 	dpi=300,
 	xz=NULL,
-	memo=""
+	memo="",
+	dummy.chr.den.as.bg=TRUE
 )
 {		#print("Starting Circular-Manhattan plot!",quote=F)
 	taxa=colnames(Pmap)[-c(1:3)]
@@ -271,6 +272,16 @@ GAPIT.Circle.Manhattan.Plot <- function(
 
 		#order the GWAS results by chromosome and position
 		Pmap <- Pmap[order(Pmap[, 1], Pmap[,2]), ]
+		
+		dummy.row.index <- integer(0)
+		dummy.chr.value <- NA
+		if(dummy.chr.den.as.bg && ncol(Pmap) > 2){
+			zero.row.index <- which(rowSums(Pmap[,-c(1:2)] == 0) == (ncol(Pmap)-2))
+			if(length(zero.row.index) > 0){
+				dummy.chr.value <- as.numeric(names(sort(table(Pmap[zero.row.index, 1]), decreasing=TRUE))[1])
+				dummy.row.index <- zero.row.index[Pmap[zero.row.index, 1] == dummy.chr.value]
+			}
+		}
 
 		#get the index of chromosome
 		chr <- unique(Pmap[,1])
@@ -367,6 +378,12 @@ GAPIT.Circle.Manhattan.Plot <- function(
 			cir.density=TRUE
 			den.fold <- 20
 			density.list <- Densitplot(map=Pmap[,c(1,1,2)], col=chr.den.col, plot=FALSE, bin=bin.size, legend.max=bin.max)
+			if(dummy.chr.den.as.bg && length(dummy.row.index) > 0 && length(density.list$den.col) > 0){
+				bg_col <- graphics::par("bg")
+				if(is.null(bg_col) || is.na(bg_col) || bg_col == "transparent")	bg_col <- "white"
+				dummy.row.index <- dummy.row.index[dummy.row.index >= 1 & dummy.row.index <= length(density.list$den.col)]
+				if(length(dummy.row.index) > 0)	density.list$den.col[dummy.row.index] <- bg_col
+			}
 			#list(den.col=col.seg, legend.col=legend.col, legend.y=legend.y)
 		}else{
 			cir.density=FALSE
@@ -476,14 +493,24 @@ GAPIT.Circle.Manhattan.Plot <- function(
 
 							#print(length(X1chr))
 							if(is.null(chr.den.col)){
-								graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=rep(colx,ceiling(length(chr)/length(colx)))[k],border=rep(colx,ceiling(length(chr)/length(colx)))[k])	
+								poly_col <- rep(colx,ceiling(length(chr)/length(colx)))[k]
+								poly_border <- poly_col
 							}else{
 								if(cir.density){
-										graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col="grey",border="grey")
+									poly_col <- "grey"
+									poly_border <- "grey"
 								}else{
-										graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=chr.den.col,border=chr.den.col)
+									poly_col <- chr.den.col
+									poly_border <- chr.den.col
 								}
 							}
+							if(dummy.chr.den.as.bg && !is.na(dummy.chr.value) && chr[k] == dummy.chr.value){
+								bg_col <- graphics::par("bg")
+								if(is.null(bg_col) || is.na(bg_col) || bg_col == "transparent")	bg_col <- "white"
+								poly_col <- bg_col
+								poly_border <- bg_col
+							}
+							graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=poly_col,border=poly_border)
 						}else{
 							polygon.index <- seq(1+round(band/2)+max(pvalue.posN.list[[k-1]]),-round(band/2)+max(pvalue.posN.list[[k]]), length=polygon.num)
 							X1chr=(RR)*sin(2*pi*(polygon.index)/TotalN)
@@ -491,18 +518,34 @@ GAPIT.Circle.Manhattan.Plot <- function(
 							X2chr=(RR+cir.chr.h)*sin(2*pi*(polygon.index)/TotalN)
 							Y2chr=(RR+cir.chr.h)*cos(2*pi*(polygon.index)/TotalN)
 							if(is.null(chr.den.col)){
-								graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=rep(colx,ceiling(length(chr)/length(colx)))[k],border=rep(colx,ceiling(length(chr)/length(colx)))[k])
+								poly_col <- rep(colx,ceiling(length(chr)/length(colx)))[k]
+								poly_border <- poly_col
 							}else{
 								if(cir.density){
-										graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col="grey",border="grey")
+									poly_col <- "grey"
+									poly_border <- "grey"
 								}else{
-										graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=chr.den.col,border=chr.den.col)
+									poly_col <- chr.den.col
+									poly_border <- chr.den.col
 								}
-							}		
+							}
+							if(dummy.chr.den.as.bg && !is.na(dummy.chr.value) && chr[k] == dummy.chr.value){
+								bg_col <- graphics::par("bg")
+								if(is.null(bg_col) || is.na(bg_col) || bg_col == "transparent")	bg_col <- "white"
+								poly_col <- bg_col
+								poly_border <- bg_col
+							}
+							graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=poly_col,border=poly_border)
 						}
 					}
 					
 					if(cir.density){
+						if(dummy.chr.den.as.bg && length(dummy.row.index) > 0 && length(density.list$den.col) > 0){
+							bg_col <- graphics::par("bg")
+							if(is.null(bg_col) || is.na(bg_col) || bg_col == "transparent")	bg_col <- "white"
+							dummy.row.index <- dummy.row.index[dummy.row.index >= 1 & dummy.row.index <= length(density.list$den.col)]
+							if(length(dummy.row.index) > 0)	density.list$den.col[dummy.row.index] <- bg_col
+						}
 
 						graphics::segments(
 							(RR)*sin(2*pi*(pvalue.posN-round(band/2))/TotalN),
@@ -644,14 +687,16 @@ GAPIT.Circle.Manhattan.Plot <- function(
 				if(cir.chr==TRUE){
 					ticks1=1.07*(RR+cir.chr.h)*sin(2*pi*(ticks-round(band/2))/TotalN)
 					ticks2=1.07*(RR+cir.chr.h)*cos(2*pi*(ticks-round(band/2))/TotalN)
+					label.index <- seq_along(ticks)
+					if(dummy.chr.den.as.bg && !is.na(dummy.chr.value))	label.index <- label.index[chr[label.index] != dummy.chr.value]
 					if(is.null(chr.labels)){
 						#print(length(ticks))
-						for(i in 1:(length(ticks)-1)){
+						for(i in label.index){
 							angle=360*(1-(ticks-round(band/2))[i]/TotalN)
 							graphics::text(ticks1[i],ticks2[i],chr.ori[i],srt=angle,font=2,cex=cex.axis)
 						}
 					}else{
-						for(i in 1:length(ticks)){
+						for(i in label.index){
 							angle=360*(1-(ticks-round(band/2))[i]/TotalN)
 							graphics::text(ticks1[i],ticks2[i],chr.labels[i],srt=angle,font=2,cex=cex.axis)
 						}
@@ -659,13 +704,15 @@ GAPIT.Circle.Manhattan.Plot <- function(
 				}else{
 					ticks1=(0.9*r)*sin(2*pi*(ticks-round(band/2))/TotalN)
 					ticks2=(0.9*r)*cos(2*pi*(ticks-round(band/2))/TotalN)
+					label.index <- seq_along(ticks)
+					if(dummy.chr.den.as.bg && !is.na(dummy.chr.value))	label.index <- label.index[chr[label.index] != dummy.chr.value]
 					if(is.null(chr.labels)){
-						for(i in 1:length(ticks)){
+						for(i in label.index){
 						angle=360*(1-(ticks-round(band/2))[i]/TotalN)
 						graphics::text(ticks1[i],ticks2[i],chr.ori[i],srt=angle,font=2,cex=cex.axis)
 						}
 					}else{
-						for(i in 1:length(ticks)){
+						for(i in label.index){
 							angle=360*(1-(ticks-round(band/2))[i]/TotalN)
 							graphics::text(ticks1[i],ticks2[i],chr.labels[i],srt=angle,font=2,cex=cex.axis)
 						}
@@ -686,15 +733,25 @@ GAPIT.Circle.Manhattan.Plot <- function(
 							Y1chr=(2*cir.band+RR)*cos(2*pi*(polygon.index)/TotalN)
 							X2chr=(2*cir.band+RR+cir.chr.h)*sin(2*pi*(polygon.index)/TotalN)
 							Y2chr=(2*cir.band+RR+cir.chr.h)*cos(2*pi*(polygon.index)/TotalN)
-								if(is.null(chr.den.col)){
-									graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=rep(colx,ceiling(length(chr)/length(colx)))[k],border=rep(colx,ceiling(length(chr)/length(colx)))[k])	
+							if(is.null(chr.den.col)){
+								poly_col <- rep(colx,ceiling(length(chr)/length(colx)))[k]
+								poly_border <- poly_col
+							}else{
+								if(cir.density){
+									poly_col <- "grey"
+									poly_border <- "grey"
 								}else{
-									if(cir.density){
-										graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col="grey",border="grey")
-									}else{
-										graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=chr.den.col,border=chr.den.col)
-									}
+									poly_col <- chr.den.col
+									poly_border <- chr.den.col
 								}
+							}
+							if(dummy.chr.den.as.bg && !is.na(dummy.chr.value) && chr[k] == dummy.chr.value){
+								bg_col <- graphics::par("bg")
+								if(is.null(bg_col) || is.na(bg_col) || bg_col == "transparent")	bg_col <- "white"
+								poly_col <- bg_col
+								poly_border <- bg_col
+							}
+							graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=poly_col,border=poly_border)
 						}else{
 							polygon.index <- seq(1+round(band/2)+max(pvalue.posN.list[[k-1]]),-round(band/2)+max(pvalue.posN.list[[k]]), length=polygon.num)
 							X1chr=(2*cir.band+RR)*sin(2*pi*(polygon.index)/TotalN)
@@ -702,17 +759,33 @@ GAPIT.Circle.Manhattan.Plot <- function(
 							X2chr=(2*cir.band+RR+cir.chr.h)*sin(2*pi*(polygon.index)/TotalN)
 							Y2chr=(2*cir.band+RR+cir.chr.h)*cos(2*pi*(polygon.index)/TotalN)
 							if(is.null(chr.den.col)){
-								graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=rep(colx,ceiling(length(chr)/length(colx)))[k],border=rep(colx,ceiling(length(chr)/length(colx)))[k])	
+								poly_col <- rep(colx,ceiling(length(chr)/length(colx)))[k]
+								poly_border <- poly_col
 							}else{
-									if(cir.density){
-										graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col="grey",border="grey")
-									}else{
-										graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=chr.den.col,border=chr.den.col)
-									}
-							}	
+								if(cir.density){
+									poly_col <- "grey"
+									poly_border <- "grey"
+								}else{
+									poly_col <- chr.den.col
+									poly_border <- chr.den.col
+								}
+							}
+							if(dummy.chr.den.as.bg && !is.na(dummy.chr.value) && chr[k] == dummy.chr.value){
+								bg_col <- graphics::par("bg")
+								if(is.null(bg_col) || is.na(bg_col) || bg_col == "transparent")	bg_col <- "white"
+								poly_col <- bg_col
+								poly_border <- bg_col
+							}
+							graphics::polygon(c(rev(X1chr),X2chr),c(rev(Y1chr),Y2chr),col=poly_col,border=poly_border)
 						}
 					}
 					if(cir.density){
+						if(dummy.chr.den.as.bg && length(dummy.row.index) > 0 && length(density.list$den.col) > 0){
+							bg_col <- graphics::par("bg")
+							if(is.null(bg_col) || is.na(bg_col) || bg_col == "transparent")	bg_col <- "white"
+							dummy.row.index <- dummy.row.index[dummy.row.index >= 1 & dummy.row.index <= length(density.list$den.col)]
+							if(length(dummy.row.index) > 0)	density.list$den.col[dummy.row.index] <- bg_col
+						}
 
 						graphics::segments(
 							(2*cir.band+RR)*sin(2*pi*(pvalue.posN-round(band/2))/TotalN),
@@ -842,13 +915,15 @@ GAPIT.Circle.Manhattan.Plot <- function(
 				if(cir.chr==TRUE){
 					ticks1=1.1*(2*cir.band+RR)*sin(2*pi*(ticks-round(band/2))/TotalN)
 					ticks2=1.1*(2*cir.band+RR)*cos(2*pi*(ticks-round(band/2))/TotalN)
+					label.index <- seq_along(ticks)
+					if(dummy.chr.den.as.bg && !is.na(dummy.chr.value))	label.index <- label.index[chr[label.index] != dummy.chr.value]
 					if(is.null(chr.labels)){
-						for(i in 1:(length(ticks)-1)){
+						for(i in label.index){
 						  angle=360*(1-(ticks-round(band/2))[i]/TotalN)
 						  graphics::text(ticks1[i],ticks2[i],chr.ori[i],srt=angle,font=2,cex=cex.axis)
 						}
 					}else{
-						for(i in 1:length(ticks)){
+						for(i in label.index){
 							angle=360*(1-(ticks-round(band/2))[i]/TotalN)
 							graphics::text(ticks1[i],ticks2[i],chr.labels[i],srt=angle,font=2,cex=cex.axis)
 						}
@@ -856,15 +931,17 @@ GAPIT.Circle.Manhattan.Plot <- function(
 				}else{
 					ticks1=1.0*(RR+cir.band)*sin(2*pi*(ticks-round(band/2))/TotalN)
 					ticks2=1.0*(RR+cir.band)*cos(2*pi*(ticks-round(band/2))/TotalN)
+					label.index <- seq_along(ticks)
+					if(dummy.chr.den.as.bg && !is.na(dummy.chr.value))	label.index <- label.index[chr[label.index] != dummy.chr.value]
 					if(is.null(chr.labels)){
-						for(i in 1:length(ticks)){
+						for(i in label.index){
 						
 							#adjust the angle of labels of circle plot
 							angle=360*(1-(ticks-round(band/2))[i]/TotalN)
 							graphics::text(ticks1[i],ticks2[i],chr.ori[i],srt=angle,font=2,cex=cex.axis)
 						}
 					}else{
-						for(i in 1:length(ticks)){
+						for(i in label.index){
 							angle=360*(1-(ticks-round(band/2))[i]/TotalN)
 							graphics::text(ticks1[i],ticks2[i],chr.labels[i],srt=angle,font=2,cex=cex.axis)
 						}
@@ -1191,3 +1268,10 @@ GAPIT.Circle.Manhattan.Plot <- function(
 	}#End of Whole function
 
 #}
+
+GAPIT.Circle.Manhattan.Plot.NoDummyDensity <- function(...)
+{
+	args <- list(...)
+	args$dummy.chr.den.as.bg <- TRUE
+	do.call(GAPIT.Circle.Manhattan.Plot, args)
+}
