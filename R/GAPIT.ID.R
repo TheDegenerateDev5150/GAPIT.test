@@ -45,7 +45,7 @@
 #Object: To Interpretation and Diagnoses 
 #Designed by Zhiwu Zhang
 #Writen by Jiabo Wang
-#Last update: Novenber 3, 2016
+#Last update: JUL 17, 2026 Jiabo Wang
 ##############################################################################################
 print("GAPIT.ID in process...")
 #Define the funcitno here
@@ -96,7 +96,7 @@ if(is.null(DP)&is.null(IC))#inputdata is other method result
         print("Association table..." )
         print("Joining tvalue and stderr" )
         DTS=cbind(GI,df,tvalue,stderr,effect.est)
-        colnames(DTS)=c("SNP","Chromosome","Position","DF","t Value","std Error","effect")	
+        colnames(DTS)=c("SNP","Chromosome","Position","DF","t Value","std Error","effect")  
         print("Creating ROC table and plot" )
 
         if(file.output)
@@ -209,7 +209,11 @@ if(is.null(DP)&is.null(IC))#inputdata is other method result
           GWAS[,2]=chro
         }
         utils::write.table(GWAS, paste("GAPIT.Association.GWAS_Results.", DP$name.of.trait,"(NYC)", ".csv", sep = ""), quote = FALSE, sep = ",", row.names = FALSE,col.names = TRUE)
-        DTS=cbind(GWAS[,1:3],df,tvalue,stderr,GWAS[,ncol(GWAS)])
+        effect_col <- NULL
+        if("Effect" %in% colnames(GWAS)) effect_col <- GWAS[, "Effect", drop = TRUE]
+        if(is.null(effect_col) && "effect" %in% colnames(GWAS)) effect_col <- GWAS[, "effect", drop = TRUE]
+        if(is.null(effect_col)) effect_col <- rep(NA, nrow(GWAS))
+        DTS=cbind(GWAS[,1:3],df,tvalue,stderr,effect_col)
         colnames(DTS)=c("SNP","Chromosome","Position","DF","t Value","std Error","effect")  
         utils::write.table(DTS, paste("GAPIT.Association.GWAS_StdErr.", DP$name.of.trait, "(NYC)",".csv", sep = ""), quote = FALSE, sep = ",", row.names = FALSE,col.names = TRUE)
         GAPIT.Phenotype.afterGWAS(GWAS=GWAS,GD=DP$GD,GM=DP$GM,Y=DP$Y,G=DP$G,model=DP$model,cutOff=DP$cutOff)
@@ -246,4 +250,3 @@ if(is.null(DP)&is.null(IC))#inputdata is other method result
 
 }  #end of GAPIT.ID function
 #=============================================================================================
-

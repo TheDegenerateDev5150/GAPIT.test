@@ -15,7 +15,7 @@
   CV.Extragenetic=0,
   GI=NULL,
   GP=NULL,
-	file.path=NULL,
+  file.path=NULL,
   file.from=NULL,
   file.to=NULL,
   file.total=1, 
@@ -48,7 +48,7 @@
 #Object: To esimate variance component by using EMMA algorithm and perform GWAS with P3D/EMMAx
 #Output: ps, REMLs, stats, dfs, vgs, ves, BLUP,  BLUP_Plus_Mean, PEV
 #Authors: Feng Tian, Alex Lipka and Zhiwu Zhang
-# Last update: April 6, 2016
+# Last update: JUL 17, 2026 Jiabo Wang
 # Library used: EMMA (Kang et al, Genetics, Vol. 178, 1709-1723, March 2008)
 # Note: This function was modified from the function of emma.REML.t from the library
 ##############################################################################################
@@ -70,6 +70,36 @@
   #Change data to matrix format if they are not
   if(is.null(dim(ys)) || ncol(ys) == 1)  ys <- matrix(ys, 1, length(ys))
   if(is.null(X0)) X0 <- matrix(1, ncol(ys), 1)
+
+  # When Model.selection removes one or more PCs, the original covariate matrix
+  # may retain more PC columns than the fitted beta vector. BLUE for the fixed-
+  # effect PC component should only use the PC columns that remain in the model.
+  .gapit_blue_component <- function(Xmat, betaVec){
+    if(is.null(Xmat)) return(numeric(0))
+    Xmat <- as.matrix(Xmat)
+    if(is.null(dim(Xmat))) Xmat <- matrix(Xmat, ncol = 1)
+    if(is.null(betaVec) || length(betaVec) == 0 || ncol(Xmat) == 0){
+      return(rep(0, nrow(Xmat)))
+    }
+
+    betaNamed <- betaVec
+    if(!is.null(colnames(Xmat)) && !is.null(names(betaNamed))){
+      common <- intersect(colnames(Xmat), names(betaNamed))
+      if(length(common) > 0){
+        Xmat <- Xmat[, common, drop = FALSE]
+        betaNamed <- betaNamed[common]
+      }
+    }
+
+    if(ncol(Xmat) != length(betaNamed)){
+      shared <- min(ncol(Xmat), length(betaNamed))
+      if(shared <= 0) return(rep(0, nrow(Xmat)))
+      Xmat <- Xmat[, seq_len(shared), drop = FALSE]
+      betaNamed <- betaNamed[seq_len(shared)]
+    }
+
+    as.vector(Xmat %*% as.numeric(betaNamed))
+  }
 
   #handler of special Z and K
   if(!is.null(Z)){ if(ncol(Z) == nrow(Z)) Z = NULL }
@@ -235,11 +265,11 @@
     # beta.Extragenetic=beta
     if(CV.Extragenetic!=0)XCVI=X[,-c(1:(1+CV.Extragenetic)),drop=FALSE]
     XCVN=X[,c(1:(1+CV.Extragenetic)),drop=FALSE]
-    if(CV.Extragenetic!=0)beta.I=as.numeric(beta)[-c(1:(1+CV.Extragenetic))]
-    beta.N=as.numeric(beta)[c(1:(1+CV.Extragenetic))]
-    BLUE.N=XCVN%*%beta.N
+    if(CV.Extragenetic!=0)beta.I=beta[-c(1:(1+CV.Extragenetic))]
+    beta.N=beta[c(1:(1+CV.Extragenetic))]
+    BLUE.N=.gapit_blue_component(XCVN,beta.N)
     BLUE.I=rep(0,length(BLUE.N))
-    if(CV.Extragenetic!=0)BLUE.I=XCVI%*%beta.I
+    if(CV.Extragenetic!=0)BLUE.I=.gapit_blue_component(XCVI,beta.I)
     #Interception only
     # if(length(beta)==1)XCV=X
     BLUE=cbind(BLUE.N,BLUE.I)
@@ -540,13 +570,13 @@
      
                   if  (!Create.indicator)
                   { #### Feng changed
-	   #print(xs[1:10,1:10])
+     #print(xs[1:10,1:10])
                       xv <- xs[vids,i]
                       vids <- !is.na(xs[,i]) #### Feng changed
                       vids.TRUE=which(vids==TRUE)
                       vids.FALSE=which(vids==FALSE)
                       ns=length(xv)
-	   #print(xv))
+     #print(xv))
                       ss=sum(xv)
                       maf[i]=min(.5*ss/ns,1-.5*ss/ns)
                       nobs[i]=ns
@@ -841,16 +871,16 @@
                               }else{
                                 XCV=as.matrix(CVI[,-1])                               
                               }
-      		#CV.Extragenetic specified
+          #CV.Extragenetic specified
                             # beta.Extragenetic=beta
                               if(ncol(XCV)>1)XCVI=XCV[,-c(1:(1+CV.Extragenetic)),drop=FALSE]
                               XCVN=XCV[,c(1:(1+CV.Extragenetic)),drop=FALSE]
-                              if(ncol(XCV)>1)beta.I=as.numeric(beta)[-c(1:(1+CV.Extragenetic))]
-                              beta.N=as.numeric(beta)[c(1:(1+CV.Extragenetic))]
-                              BLUE.N=XCVN%*%beta.N
+                              if(ncol(XCV)>1)beta.I=beta[-c(1:(1+CV.Extragenetic))]
+                              beta.N=beta[c(1:(1+CV.Extragenetic))]
+                              BLUE.N=.gapit_blue_component(XCVN,beta.N)
                               BLUE.I=rep(0,length(BLUE.N))
-                              if(ncol(XCV)>1)BLUE.I=XCVI%*%beta.I
-		#Interception only
+                              if(ncol(XCV)>1)BLUE.I=.gapit_blue_component(XCVI,beta.I)
+    #Interception only
                             # if(length(beta)==1)XCV=X
                             BLUE=cbind(BLUE.N,BLUE.I)
                             # if(inherits(BLUE, "try-error")) BLUE = NA
@@ -894,18 +924,18 @@
                             {
                               if(ncol(XCV)>1)XCVI=XCV[,-c(1:(1+CV.Extragenetic)),drop=FALSE]
                               XCVN=XCV[,c(1:(1+CV.Extragenetic)),drop=FALSE]
-                              if(ncol(XCV)>1)beta.I=as.numeric(beta)[-c(1:(1+CV.Extragenetic))]
-                              beta.N=as.numeric(beta)[c(1:(1+CV.Extragenetic))]
+                              if(ncol(XCV)>1)beta.I=beta[-c(1:(1+CV.Extragenetic))]
+                              beta.N=beta[c(1:(1+CV.Extragenetic))]
                               # print(is.null(beta.I))
                               BLUE.I=rep(0,nrow(XCVI))
                               BLUE.N=rep(0,nrow(XCVN))
-                              if(length(beta.I)>0)BLUE.I=try(XCVI%*%beta.I,silent=TRUE)
-                              if(length(beta.N)>0)BLUE.N=try(XCVN%*%beta.N,silent=TRUE)
+                              if(length(beta.I)>0)BLUE.I=.gapit_blue_component(XCVI,beta.I)
+                              if(length(beta.N)>0)BLUE.N=.gapit_blue_component(XCVN,beta.N)
                             }else{
                               XCVI=as.matrix(cbind(1,data.frame(CVI[,-1])))
                               beta.I=beta
-                              BLUE.I=rep(0,length(BLUE.I))
-                              if(length(beta.I)>0)BLUE.I=try(XCVI%*%beta.I,silent=TRUE)
+                              BLUE.I=rep(0,nrow(XCVI))
+                              if(length(beta.I)>0)BLUE.I=.gapit_blue_component(XCVI,beta.I)
                               BLUE.N=rep(0,length(BLUE.I))
                             }
     #Interception only
