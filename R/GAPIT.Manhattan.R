@@ -115,7 +115,7 @@ DPP=50000,cutOff=0.01,band=5,seqQTN=NULL,plot.style="Oceanic",CG=NULL,plot.bin=1
             bin.set=NULL
             r2_color=matrix(0,nrow(subset),2)
             #r2_color
-            print(paste("select ",num.row," candidate significont markers in ",i," chromosome ",sep="") )
+            print(paste("select ",num.row," candidate significant markers in ",i," chromosome ",sep="") )
             #print(sig.mp)
             if(length(unique(sig.index))==2)
             {
